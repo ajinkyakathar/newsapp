@@ -1,42 +1,70 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../model/article_model.dart';
-import '../Api_service/api_service.dart';
+import 'package:http/http.dart' as http;
 
 class HomeScreen extends StatefulWidget {
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final ApiService apiService = ApiService();
-
-  List<Article> articles = [];
-  bool isLoading = true;
+  List articles = [];
+  bool loading = true;
+  bool updating = false;
   Timer? timer;
+  String lastUpdated = "";
 
   @override
   void initState() {
     super.initState();
-    fetchData();
+    getData();
 
-    // Auto refresh every 3 seconds
-    timer = Timer.periodic(Duration(seconds: 3), (timer) {
-      fetchData();
+    // auto refresh every 3 seconds
+    timer = Timer.periodic(Duration(seconds: 3), (t) {
+      getData();
     });
   }
 
-  Future<void> fetchData() async {
+  Future<void> getData() async {
+    if (updating) return;
+
+    setState(() {
+      updating = true;
+    });
+
     try {
-      final data = await apiService.fetchArticles();
+      var res = await http.get(
+        Uri.parse('https://api.spaceflightnewsapi.net/v4/articles/'),
+      );
+
+      var data = jsonDecode(res.body);
+
+      List list = data['results'];
+
+      list.shuffle(); // just to show visible change
 
       setState(() {
-        articles = data.take(10).toList(); // limit for UI
-        isLoading = false;
+        articles = list.take(10).toList();
+        loading = false;
+        lastUpdated = DateTime.now().toLocal().toString();
       });
     } catch (e) {
       print(e);
     }
+
+    setState(() {
+      updating = false;
+    });
+  }
+
+  void showMsg(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: Duration(seconds: 1),
+      ),
+    );
   }
 
   @override
@@ -45,25 +73,19 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Widget buildCard(Article article) {
+  Widget card(item) {
     return Card(
       margin: EdgeInsets.all(10),
-      elevation: 3,
       child: Padding(
-        padding: EdgeInsets.all(12),
+        padding: EdgeInsets.all(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(item['title'],
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 6),
             Text(
-              article.title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              article.summary,
+              item['summary'],
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -78,23 +100,51 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Live News Feed"),
-        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: fetchData,
+            onPressed: () async {
+              showMsg("Refreshing...");
+              await getData();
+              showMsg("Updated");
+            },
           )
         ],
       ),
-      body: isLoading
+      body: loading
           ? Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-        onRefresh: fetchData,
-        child: ListView.builder(
-          itemCount: articles.length,
-          itemBuilder: (context, index) {
-            return buildCard(articles[index]);
-          },
+        onRefresh: () async {
+          showMsg("Refreshing...");
+          await getData();
+          showMsg("Updated");
+        },
+        child: Column(
+          children: [
+            if (updating)
+              Padding(
+                padding: EdgeInsets.all(5),
+                child: Text(
+                  "Updating...",
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+
+            Padding(
+              padding: EdgeInsets.all(5),
+              child: Text(
+                "Last updated: $lastUpdated",
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+
+            Expanded(
+              child: ListView.builder(
+                itemCount: articles.length,
+                itemBuilder: (c, i) => card(articles[i]),
+              ),
+            ),
+          ],
         ),
       ),
     );

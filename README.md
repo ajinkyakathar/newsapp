@@ -1,16 +1,17 @@
-# newsapp
+Flutter News App
 
-A new Flutter project.
+This is a simple Flutter application that demonstrates 
+how API integration works.
 
-## Getting Started
+Features :-
+- Fetch data from API
+- Auto refresh every 3 seconds
+- Manual refresh
+- Clean UI
 
-This project is a starting point for a Flutter application.
+API Used :-
+https://api.spaceflightnewsapi.net/v4/articles/
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Run :-
+flutter pub get  
+flutter run
